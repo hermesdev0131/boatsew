@@ -138,7 +138,7 @@ class VideoService {
     })
   }
 
-  async trimVideoTo2Minutes(inputFile: File): Promise<Blob> {
+  async trimVideoTo2Minutes(inputFile: File, onProgress?: (progress: number) => void): Promise<Blob> {
     if (!this.ffmpeg || !this.isLoaded) {
       await this.load()
     }
@@ -153,22 +153,28 @@ class VideoService {
 
     try {
       // Write input file to FFmpeg virtual filesystem
+      if (onProgress) onProgress(5) // Started
       await this.ffmpeg.writeFile(inputFileName, await fetchFile(inputFile))
+      if (onProgress) onProgress(15) // File loaded
 
-      // Trim video to exactly 2 minutes (120 seconds) with highest quality
+      // Trim video to exactly 2 minutes (120 seconds) with ultra-fast encoding
+      if (onProgress) onProgress(20) // Starting encoding
       const result = await this.ffmpeg.exec([
         '-i', inputFileName,
         '-t', '120', // Trim to 120 seconds (2 minutes)
         '-c:v', 'libx264', // Use H.264 codec
-        '-crf', '18', // High quality (lower = better, 18 is visually lossless)
-        '-preset', 'fast', // Faster encoding (slow preset may cause timeout)
+        '-crf', '23', // Good quality (23 is still very good, faster than 18)
+        '-preset', 'ultrafast', // Ultra-fast encoding (5-10x faster than fast)
         '-c:a', 'aac', // Use AAC for audio
         '-b:a', '128k', // Audio bitrate
         outputFileName
       ])
 
+      if (onProgress) onProgress(80) // Encoding complete
+
       // Read output file
       const data = await this.ffmpeg.readFile(outputFileName)
+      if (onProgress) onProgress(90) // File read
       
       if (!data || (data as any).length === 0) {
         throw new Error('Failed to process video: output file is empty')
@@ -182,6 +188,7 @@ class VideoService {
         // Ignore cleanup errors
       }
 
+      if (onProgress) onProgress(100) // Complete
       return new Blob([data as any], { type: 'video/mp4' })
     } catch (error) {
       // Clean up on error

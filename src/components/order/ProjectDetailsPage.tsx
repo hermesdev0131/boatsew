@@ -53,6 +53,7 @@ export default function ProjectDetailsPage({
   const [currentCushionId, setCurrentCushionId] = useState<string>('')
   const [processingVideo, setProcessingVideo] = useState(false)
   const [processingProgress, setProcessingProgress] = useState<string>('')
+  const [trimmingProgress, setTrimmingProgress] = useState<number>(0)
 
   const handlePurchaseOrderChange = (value: string) => {
     setFormData(prev => ({
@@ -288,11 +289,21 @@ export default function ProjectDetailsPage({
         // If video is longer than 2 minutes, trim it to exactly 2 minutes
         if (duration > 120) {
           setProcessingProgress(`Trimming "${file.name}" to 2 minutes...`)
-          const trimmedBlob = await videoService.trimVideoTo2Minutes(file)
+          setTrimmingProgress(1) // Start at 1% to show progress bar
+          
+          const trimmedBlob = await videoService.trimVideoTo2Minutes(file, (progress) => {
+            setTrimmingProgress(progress)
+          })
+          
           processedFile = new File([trimmedBlob], file.name.replace(/\.[^/.]+$/, '') + '_trimmed.mp4', {
             type: 'video/mp4'
           })
           processedName = processedFile.name
+          
+          // Wait a moment before hiding progress bar
+          setTimeout(() => {
+            setTrimmingProgress(0)
+          }, 500)
           
           showPrompt(
             'Video Trimmed',
@@ -693,6 +704,29 @@ export default function ProjectDetailsPage({
           <Typography variant="h6" sx={{ color: 'white', textAlign: 'center', px: 2 }}>
             {processingProgress || 'Processing video...'}
           </Typography>
+          
+          {/* Show trimming progress bar if trimming is in progress */}
+          {trimmingProgress > 0 && trimmingProgress < 100 && (
+            <Box sx={{ width: '80%', maxWidth: '400px' }}>
+              {trimmingProgress < 20 ? (
+                // Show indeterminate progress during initial stages
+                <LinearProgress 
+                  variant="indeterminate"
+                  sx={{ height: 8, borderRadius: 4 }}
+                />
+              ) : (
+                // Show determinate progress during encoding
+                <LinearProgress 
+                  variant="determinate" 
+                  value={trimmingProgress}
+                  sx={{ height: 8, borderRadius: 4 }}
+                />
+              )}
+              <Typography variant="body2" sx={{ color: 'white', textAlign: 'center', mt: 1, fontWeight: 'bold' }}>
+                {trimmingProgress < 20 ? 'Preparing video...' : `Trimming: ${Math.round(trimmingProgress)}%`}
+              </Typography>
+            </Box>
+          )}
         </Box>
       )}
     </Box>
