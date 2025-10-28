@@ -291,27 +291,42 @@ export default function ProjectDetailsPage({
           setProcessingProgress(`Trimming "${file.name}" to 2 minutes...`)
           setTrimmingProgress(1) // Start at 1% to show progress bar
           
-          const trimmedBlob = await videoService.trimVideoTo2Minutes(file, (progress) => {
-            setTrimmingProgress(progress)
-          })
-          
-          const trimmedFileName = file.name.replace(/\.[^/.]+$/, '') + '_trimmed.mp4'
-          processedFile = new File([trimmedBlob], trimmedFileName, {
-            type: 'video/mp4',
-            lastModified: Date.now()
-          })
-          processedName = processedFile.name
-          
-          // Wait a moment before hiding progress bar
-          setTimeout(() => {
-            setTrimmingProgress(0)
-          }, 500)
-          
-          showPrompt(
-            'Video Trimmed',
-            `The video "${file.name}" was ${Math.round(duration)} seconds long and has been automatically trimmed to 2 minutes (120 seconds).`,
-            'info'
-          )
+          try {
+            const trimmedBlob = await videoService.trimVideoTo2Minutes(file, (progress) => {
+              console.log(`Video trimming progress: ${progress}%`)
+              setTrimmingProgress(progress)
+            })
+            
+            console.log(`Trimmed blob size: ${trimmedBlob.size} bytes`)
+            
+            const trimmedFileName = file.name.replace(/\.[^/.]+$/, '') + '_trimmed.mp4'
+            processedFile = new File([trimmedBlob], trimmedFileName, {
+              type: 'video/mp4',
+              lastModified: Date.now()
+            })
+            processedName = processedFile.name
+            
+            console.log(`Created File object: ${processedFile.name}, size: ${processedFile.size}`)
+            
+            // Wait a moment before hiding progress bar
+            setTimeout(() => {
+              setTrimmingProgress(0)
+            }, 500)
+            
+            showPrompt(
+              'Video Trimmed',
+              `The video "${file.name}" was ${Math.round(duration)} seconds long and has been automatically trimmed to 2 minutes (120 seconds).`,
+              'info'
+            )
+          } catch (trimError) {
+            console.error('Trimming error:', trimError)
+            showPrompt(
+              'Video Trimming Error',
+              trimError instanceof Error ? trimError.message : 'Failed to trim video. Please try again.',
+              'error'
+            )
+            continue
+          }
         }
 
         // Validate the processed file
@@ -335,9 +350,12 @@ export default function ProjectDetailsPage({
       }
 
       if (newVideos.length > 0) {
+        console.log(`Adding ${newVideos.length} videos to cushion ${cushionId}`)
         updateCushion(cushionId, {
           videos: [...formData.cushions.find(c => c.id === cushionId)!.videos, ...newVideos],
         })
+      } else {
+        console.warn('No valid videos to add after processing')
       }
     } catch (error) {
       showPrompt(
@@ -735,7 +753,7 @@ export default function ProjectDetailsPage({
                 />
               )}
               <Typography variant="body2" sx={{ color: 'white', textAlign: 'center', mt: 1, fontWeight: 'bold' }}>
-                {trimmingProgress < 20 ? 'Preparing video...' : `Trimming: ${Math.round(trimmingProgress)}%`}
+                {trimmingProgress < 1 ? 'Preparing video...' : `Trimming: ${Math.round(trimmingProgress)}%`}
               </Typography>
             </Box>
           )}

@@ -115,26 +115,74 @@ class VideoService {
     return new Promise((resolve, reject) => {
       const video = document.createElement('video')
       video.preload = 'metadata'
+      video.style.display = 'none'
+      
+      let blobUrl: string | null = null
+      let hasResolved = false
+      
+      const cleanup = () => {
+        hasResolved = true
+        try {
+          if (blobUrl) URL.revokeObjectURL(blobUrl)
+          if (video.parentNode) {
+            video.parentNode.removeChild(video)
+          }
+          video.src = ''
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
       
       // Set a timeout in case the video takes too long to load
       const timeoutId = setTimeout(() => {
-        URL.revokeObjectURL(video.src)
-        reject(new Error('Timeout: Video metadata took too long to load'))
-      }, 10000) // 10 second timeout
+        if (!hasResolved) {
+          hasResolved = true
+          cleanup()
+          reject(new Error('Timeout: Video metadata took too long to load'))
+        }
+      }, 20000) // 20 second timeout
       
       video.onloadedmetadata = function() {
-        clearTimeout(timeoutId)
-        window.URL.revokeObjectURL(video.src)
-        resolve(video.duration)
+        if (!hasResolved) {
+          hasResolved = true
+          clearTimeout(timeoutId)
+          const duration = video.duration
+          resolve(duration)
+          cleanup()
+        }
       }
       
-      video.onerror = function() {
-        clearTimeout(timeoutId)
-        URL.revokeObjectURL(video.src)
-        reject(new Error('Failed to load video metadata - the video format may not be supported'))
+      video.onerror = function(error) {
+        if (!hasResolved) {
+          hasResolved = true
+          clearTimeout(timeoutId)
+          cleanup()
+          console.error('Video load error:', error)
+          reject(new Error('Failed to load video metadata - the video format may not be supported'))
+        }
       }
       
-      video.src = URL.createObjectURL(file)
+      // Fallback if loadedmetadata doesn't fire but canplay does
+      video.oncanplay = function() {
+        if (!hasResolved && video.duration && isFinite(video.duration)) {
+          hasResolved = true
+          clearTimeout(timeoutId)
+          const duration = video.duration
+          resolve(duration)
+          cleanup()
+        }
+      }
+      
+      try {
+        blobUrl = URL.createObjectURL(file)
+        video.src = blobUrl
+        // Add to DOM body (hidden) to ensure proper loading
+        document.body.appendChild(video)
+      } catch (error) {
+        hasResolved = true
+        clearTimeout(timeoutId)
+        reject(new Error('Failed to create blob URL from video file'))
+      }
     })
   }
 
@@ -157,17 +205,32 @@ class VideoService {
       await this.ffmpeg.writeFile(inputFileName, await fetchFile(inputFile))
       if (onProgress) onProgress(15) // File loaded
 
-      // Trim video to exactly 2 minutes (120 seconds) with ultra-fast encoding
+      // Trim video to exactly 2 minutes (120 seconds)
       if (onProgress) onProgress(20) // Starting encoding
-      await this.ffmpeg.exec([
+      
+      // Execute FFmpeg with timeout protection
+      const execPromise = this.ffmpeg.exec([
         '-i', inputFileName,
         '-t', '120', // Trim to 120 seconds (2 minutes)
-        '-c:v', 'copy', // Copy video stream without re-encoding for speed
-        '-c:a', 'aac', // AAC audio codec
-        '-b:a', '128k', // Audio bitrate
+        '-c:v', 'libx264', // Use H.264 codec with fast presets
+        '-preset', 'veryfast', // Very fast encoding
+        '-crf', '28', // Quality setting (28 is good for fast encoding)
+        '-c:a', 'aac', // Use AAC audio codec
+        '-b:a', '96k', // Lower audio bitrate for speed
         '-y', // Overwrite output file if exists
         outputFileName
       ])
+
+      // Set a 120-second timeout for FFmpeg execution (increased for encoding)
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Video trimming timed out (120 seconds)')), 120000)
+      )
+
+      const result = await Promise.race([execPromise, timeoutPromise])
+      
+      if (result !== 0) {
+        throw new Error(`FFmpeg encoding failed with exit code ${result}`)
+      }
 
       if (onProgress) onProgress(80) // Encoding complete
 
@@ -198,6 +261,7 @@ class VideoService {
         // Ignore cleanup errors
       }
       
+      console.error('Video trimming error:', error)
       throw new Error(`Video trimming failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
