@@ -13,9 +13,9 @@ class VideoService {
     try {
       // Load FFmpeg with CORS configuration
       await this.ffmpeg.load({
-        coreURL: await toBlobURL(`/ffmpeg/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`/ffmpeg/ffmpeg-core.wasm`, 'application/wasm'),
-        classWorkerURL: await toBlobURL(`/ffmpeg/ffmpeg-core.worker.js`, 'text/javascript'),
+        coreURL: `https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js`,
+        wasmURL: `https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm`,
+        classWorkerURL: `https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.worker.js`,
       })
 
       this.isLoaded = true
