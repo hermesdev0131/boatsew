@@ -295,8 +295,10 @@ export default function ProjectDetailsPage({
             setTrimmingProgress(progress)
           })
           
-          processedFile = new File([trimmedBlob], file.name.replace(/\.[^/.]+$/, '') + '_trimmed.mp4', {
-            type: 'video/mp4'
+          const trimmedFileName = file.name.replace(/\.[^/.]+$/, '') + '_trimmed.mp4'
+          processedFile = new File([trimmedBlob], trimmedFileName, {
+            type: 'video/mp4',
+            lastModified: Date.now()
           })
           processedName = processedFile.name
           
@@ -310,6 +312,16 @@ export default function ProjectDetailsPage({
             `The video "${file.name}" was ${Math.round(duration)} seconds long and has been automatically trimmed to 2 minutes (120 seconds).`,
             'info'
           )
+        }
+
+        // Validate the processed file
+        if (processedFile.size === 0) {
+          showPrompt(
+            'Video Processing Error',
+            `The video file is empty after processing. Please try uploading again.`,
+            'error'
+          )
+          continue
         }
 
         const videoFile: VideoFile = {

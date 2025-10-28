@@ -159,14 +159,13 @@ class VideoService {
 
       // Trim video to exactly 2 minutes (120 seconds) with ultra-fast encoding
       if (onProgress) onProgress(20) // Starting encoding
-      const result = await this.ffmpeg.exec([
+      await this.ffmpeg.exec([
         '-i', inputFileName,
         '-t', '120', // Trim to 120 seconds (2 minutes)
-        '-c:v', 'libx264', // Use H.264 codec
-        '-crf', '23', // Good quality (23 is still very good, faster than 18)
-        '-preset', 'ultrafast', // Ultra-fast encoding (5-10x faster than fast)
-        '-c:a', 'aac', // Use AAC for audio
+        '-c:v', 'copy', // Copy video stream without re-encoding for speed
+        '-c:a', 'aac', // AAC audio codec
         '-b:a', '128k', // Audio bitrate
+        '-y', // Overwrite output file if exists
         outputFileName
       ])
 
