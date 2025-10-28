@@ -192,18 +192,25 @@ export const chatService = {
     connectionTimeout: number = 5000, // 5 seconds timeout
     onPollingStarted?: () => void
   ) {
+    console.log(`🔌 [Chat] Subscribing to real-time for order ${orderId}`)
+    console.log(`⏱️ [Chat] Connection timeout: ${connectionTimeout}ms`)
+    console.log(`📡 [Chat] Fallback to polling: ${fallbackToPolling ? 'enabled' : 'disabled'}`)
+    
     let connectionTimer: NodeJS.Timeout | null = null
     let stopPolling: (() => void) | null = null
     let isConnected = false
 
     const startFallbackPolling = () => {
-      console.log('Starting fallback polling for chat messages...')
+      console.log('📡 Starting fallback polling for chat messages (Order ID: ' + orderId + ')')
       
       // Get current messages to set initial lastMessageId
       this.getMessages(orderId).then(messages => {
         let initialLastMessageId: number | null = null
         if (messages.length > 0) {
           initialLastMessageId = Math.max(...messages.map(msg => parseInt(msg.id)))
+          console.log(`📄 Found ${messages.length} existing messages (latest ID: ${initialLastMessageId})`)
+        } else {
+          console.log('📄 No existing messages found, starting fresh')
         }
         
         stopPolling = this.startPollingWithInitialId(
@@ -214,8 +221,9 @@ export const chatService = {
           15000, // Poll every 15 seconds (reduced frequency to prevent infinite requests)
           initialLastMessageId
         )
+        console.log('⏰ Polling interval: 15 seconds (checking for new messages every 15s)')
       }).catch(err => {
-        console.error('Failed to get initial messages for polling:', err)
+        console.error('⚠️ Failed to get initial messages for polling:', err)
         // Start polling anyway with null initial ID
         stopPolling = this.startPollingWithInitialId(
           orderId,
@@ -225,6 +233,7 @@ export const chatService = {
           15000, // Poll every 15 seconds
           null
         )
+        console.log('⏰ Polling interval: 15 seconds (started without initial message context)')
       })
       
       onPollingStarted?.()
@@ -245,13 +254,26 @@ export const chatService = {
     }
 
     const handleError = (error: string) => {
-      console.error('Real-time chat connection error:', error)
-      console.warn('⚠️ Real-time subscription failed. Possible causes:')
-      console.warn('  1. Real-time not enabled for messages table in Supabase')
+      console.error('❌ Real-time chat connection error:', error)
+      console.warn('⚠️ Diagnostics for Real-time subscription failure:')
+      console.warn('  Order ID:', orderId)
+      console.warn('  Channel name: chat:' + orderId)
+      console.warn('  User ID:', currentUserId)
+      console.warn('')
+      console.warn('Possible causes (in order of likelihood):')
+      console.warn('  1. Real-time not enabled for "messages" table in Supabase Dashboard')
+      console.warn('     → Fix: Enable in Supabase > Project > Realtime > messages')
       console.warn('  2. RLS policies blocking real-time access')
+      console.warn('     → Check: auth.uid() in SELECT/INSERT RLS policies')
       console.warn('  3. Network/WebSocket connectivity issues')
+      console.warn('     → Check: Browser DevTools > Network tab for WebSocket errors')
+      console.warn('  4. Incorrect channel/table filter configuration')
+      console.warn('     → Check: filter parameter "order_id=eq.' + orderId + '"')
+      console.warn('')
+      console.warn('✓ Chat is still working via polling fallback (15 second interval)')
+      
       if (fallbackToPolling && !isConnected) {
-        console.log('✓ Falling back to polling method...')
+        console.log('📡 Switching to polling method for reliability...')
         startFallbackPolling()
       } else {
         onError(error)
@@ -271,7 +293,12 @@ export const chatService = {
     if (fallbackToPolling) {
       connectionTimer = setTimeout(() => {
         if (!isConnected) {
-          console.log('Real-time connection timeout, using polling fallback...')
+          console.warn(`⏱️ Real-time connection timeout (${connectionTimeout}ms) for order ${orderId}`)
+          console.warn('⚠️ This suggests WebSocket connectivity issues. Possible causes:')
+          console.warn('  • Firewall/network blocking WebSocket connections')
+          console.warn('  • Supabase project WebSocket endpoint unreachable')
+          console.warn('  • Browser WebSocket API not working')
+          console.log('📡 Switching to polling fallback as backup...')
           startFallbackPolling()
         }
       }, connectionTimeout)
@@ -317,15 +344,25 @@ export const chatService = {
       })
 
     return channel.subscribe((status) => {
-      console.log(`[Chat] Channel status: ${status}`)
+      const timestamp = new Date().toLocaleTimeString()
+      console.log(`[Chat ${timestamp}] Channel status: ${status}`)
+      
       if (status === 'SUBSCRIBED') {
-        console.log(`[Chat] Successfully subscribed to channel chat:${orderId}`)
+        console.log(`✅ [Chat] Real-time connection established for order ${orderId}`)
         handleConnected()
       } else if (status === 'CHANNEL_ERROR') {
+        console.error(`❌ [Chat] Real-time connection failed for order ${orderId}`)
+        console.log('[Chat] This typically indicates:')
+        console.log('  • Real-time not enabled on messages table, OR')
+        console.log('  • WebSocket connection blocked by network/firewall, OR')
+        console.log('  • RLS policies preventing subscription')
         handleError('Failed to connect to chat')
       } else if (status === 'CLOSED') {
-        console.log('[Chat] Channel closed')
+        console.log(`⚠️ [Chat] Channel closed for order ${orderId}`)
         handleDisconnected()
+      } else if (status === 'TIMED_OUT') {
+        console.warn(`⏱️ [Chat] Connection timeout for order ${orderId} - WebSocket may be slow/blocked`)
+        handleError('Connection timeout')
       }
     })
   },

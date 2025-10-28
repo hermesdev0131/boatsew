@@ -251,23 +251,20 @@ class VideoService {
       console.log(`[FFmpeg] Starting video encoding for: ${inputFileName}`)
       
       // Execute FFmpeg with timeout protection
+      // Using stream copy for maximum speed - no re-encoding needed
       const execPromise = this.ffmpeg.exec([
         '-i', inputFileName,
         '-t', '120', // Trim to 120 seconds (2 minutes)
-        '-c:v', 'libx264', // Use H.264 codec with fast presets
-        '-preset', 'veryfast', // Very fast encoding
-        '-crf', '28', // Quality setting (28 is good for fast encoding)
-        '-c:a', 'aac', // Use AAC audio codec
-        '-b:a', '96k', // Lower audio bitrate for speed
+        '-c', 'copy', // Copy both video and audio streams without re-encoding (fastest)
         '-y', // Overwrite output file if exists
         outputFileName
       ])
       
       console.log(`[FFmpeg] Exec command started, waiting for completion...`)
 
-      // Set a 120-second timeout for FFmpeg execution (increased for encoding)
+      // Set a 30-second timeout for FFmpeg execution (stream copy is very fast)
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Video trimming timed out (120 seconds)')), 120000)
+        setTimeout(() => reject(new Error('Video trimming timed out (30 seconds)')), 30000)
       )
 
       const result = await Promise.race([execPromise, timeoutPromise])
