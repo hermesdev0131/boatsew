@@ -288,14 +288,17 @@ export default function ProjectDetailsPage({
 
         // If video is longer than 2 minutes, trim it to exactly 2 minutes
         if (duration > 120) {
+          console.log(`[Upload] Video is ${duration}s, needs trimming to 120s`)
           setProcessingProgress(`Trimming "${file.name}" to 2 minutes...`)
           setTrimmingProgress(1) // Start at 1% to show progress bar
           
           try {
+            console.log(`[Upload] Starting trimVideoTo2Minutes...`)
             const trimmedBlob = await videoService.trimVideoTo2Minutes(file, (progress) => {
-              console.log(`Video trimming progress: ${progress}%`)
+              console.log(`[Upload] Video trimming progress callback: ${progress}%`)
               setTrimmingProgress(progress)
             })
+            console.log(`[Upload] trimVideoTo2Minutes completed successfully`)
             
             console.log(`Trimmed blob size: ${trimmedBlob.size} bytes`)
             

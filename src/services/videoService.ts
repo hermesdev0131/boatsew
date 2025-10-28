@@ -11,15 +11,45 @@ class VideoService {
     this.ffmpeg = new FFmpeg()
     
     try {
-      // Load FFmpeg with CORS configuration
-      await this.ffmpeg.load({
-        coreURL: `https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js`,
-        wasmURL: `https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm`,
-        classWorkerURL: `https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.worker.js`,
-      })
 
+      console.log('[FFmpeg] Fetching blob URLs...')
+      
+      // Fetch blob URLs first (outside of timeout)
+      const coreURL = await toBlobURL(`/ffmpeg/ffmpeg-core.js`, 'text/javascript')
+      console.log('[FFmpeg] Core JS blob URL obtained')
+      
+      const wasmURL = await toBlobURL(`/ffmpeg/ffmpeg-core.wasm`, 'application/wasm')
+      console.log('[FFmpeg] WASM blob URL obtained')
+      
+      console.log('[FFmpeg] Starting FFmpeg.load()...')
+      
+      // Add timeout to catch hanging loads
+      const loadPromise = this.ffmpeg.load({
+        coreURL,
+        wasmURL,
+      })
+      
+      let timeoutId: NodeJS.Timeout | null = null
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          console.error('[FFmpeg] Load timeout - FFmpeg initialization took too long')
+          reject(new Error('FFmpeg.load() timed out after 60 seconds'))
+        }, 60000)
+      })
+      
+      try {
+        await Promise.race([loadPromise, timeoutPromise])
+      } finally {
+        // Always clear the timeout to prevent it from firing later
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+        }
+      }
+
+      console.log('[FFmpeg] Successfully loaded!')
       this.isLoaded = true
     } catch (error) {
+      console.error('[FFmpeg] Load failed:', error)
       this.ffmpeg = null
       this.isLoaded = false
       throw new Error(`Failed to load FFmpeg: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -187,26 +217,38 @@ class VideoService {
   }
 
   async trimVideoTo2Minutes(inputFile: File, onProgress?: (progress: number) => void): Promise<Blob> {
+    console.log('[trimVideoTo2Minutes] Starting...')
     if (!this.ffmpeg || !this.isLoaded) {
+      console.log('[trimVideoTo2Minutes] FFmpeg not loaded, loading now...')
       await this.load()
     }
 
     if (!this.ffmpeg) {
+      console.error('[trimVideoTo2Minutes] FFmpeg is still null after load()')
       throw new Error('FFmpeg failed to load')
     }
 
+    console.log('[trimVideoTo2Minutes] FFmpeg loaded successfully')
     const fileExtension = inputFile.name.split('.').pop()?.toLowerCase() || 'mp4'
     const inputFileName = `input.${fileExtension}`
     const outputFileName = 'output.mp4'
 
     try {
       // Write input file to FFmpeg virtual filesystem
+      console.log('[trimVideoTo2Minutes] Fetching input file...')
+      const fetchedFile = await fetchFile(inputFile)
+      console.log('[trimVideoTo2Minutes] File fetched, size:', (fetchedFile as any).length)
+      
+      console.log('[trimVideoTo2Minutes] Writing file to FFmpeg FS...')
       if (onProgress) onProgress(5) // Started
-      await this.ffmpeg.writeFile(inputFileName, await fetchFile(inputFile))
+      await this.ffmpeg.writeFile(inputFileName, fetchedFile)
+      console.log('[trimVideoTo2Minutes] File written to FFmpeg FS')
       if (onProgress) onProgress(15) // File loaded
 
       // Trim video to exactly 2 minutes (120 seconds)
       if (onProgress) onProgress(20) // Starting encoding
+      
+      console.log(`[FFmpeg] Starting video encoding for: ${inputFileName}`)
       
       // Execute FFmpeg with timeout protection
       const execPromise = this.ffmpeg.exec([
@@ -220,6 +262,8 @@ class VideoService {
         '-y', // Overwrite output file if exists
         outputFileName
       ])
+      
+      console.log(`[FFmpeg] Exec command started, waiting for completion...`)
 
       // Set a 120-second timeout for FFmpeg execution (increased for encoding)
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -228,10 +272,14 @@ class VideoService {
 
       const result = await Promise.race([execPromise, timeoutPromise])
       
-      if (result !== 0) {
+      console.log(`[FFmpeg] Exec completed with result:`, result)
+      
+      if (result !== 0 && result !== undefined) {
+        console.error(`[FFmpeg] Failed with exit code: ${result}`)
         throw new Error(`FFmpeg encoding failed with exit code ${result}`)
       }
 
+      console.log(`[FFmpeg] Encoding complete, updating progress to 80%`)
       if (onProgress) onProgress(80) // Encoding complete
 
       // Read output file

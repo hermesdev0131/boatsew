@@ -246,8 +246,12 @@ export const chatService = {
 
     const handleError = (error: string) => {
       console.error('Real-time chat connection error:', error)
+      console.warn('⚠️ Real-time subscription failed. Possible causes:')
+      console.warn('  1. Real-time not enabled for messages table in Supabase')
+      console.warn('  2. RLS policies blocking real-time access')
+      console.warn('  3. Network/WebSocket connectivity issues')
       if (fallbackToPolling && !isConnected) {
-        console.log('Falling back to polling method...')
+        console.log('✓ Falling back to polling method...')
         startFallbackPolling()
       } else {
         onError(error)
@@ -313,10 +317,15 @@ export const chatService = {
       })
 
     return channel.subscribe((status) => {
+      console.log(`[Chat] Channel status: ${status}`)
       if (status === 'SUBSCRIBED') {
+        console.log(`[Chat] Successfully subscribed to channel chat:${orderId}`)
         handleConnected()
       } else if (status === 'CHANNEL_ERROR') {
         handleError('Failed to connect to chat')
+      } else if (status === 'CLOSED') {
+        console.log('[Chat] Channel closed')
+        handleDisconnected()
       }
     })
   },

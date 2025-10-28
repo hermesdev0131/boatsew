@@ -2,7 +2,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const FFMPEG_VERSION = '0.12.7';
+const FFMPEG_VERSION = '0.12.10';
 const FFMPEG_FILES = [
   'ffmpeg-core.js',
   'ffmpeg-core.wasm',
