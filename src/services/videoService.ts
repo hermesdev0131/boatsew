@@ -10,13 +10,20 @@ class VideoService {
 
     this.ffmpeg = new FFmpeg()
     
-    // Load FFmpeg with CORS configuration
-    await this.ffmpeg.load({
-      coreURL: await toBlobURL(`/ffmpeg/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`/ffmpeg/ffmpeg-core.wasm`, 'application/wasm'),
-    })
+    try {
+      // Load FFmpeg with CORS configuration
+      await this.ffmpeg.load({
+        coreURL: await toBlobURL(`/ffmpeg/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`/ffmpeg/ffmpeg-core.wasm`, 'application/wasm'),
+        classWorkerURL: await toBlobURL(`/ffmpeg/ffmpeg-core.worker.js`, 'text/javascript'),
+      })
 
-    this.isLoaded = true
+      this.isLoaded = true
+    } catch (error) {
+      this.ffmpeg = null
+      this.isLoaded = false
+      throw new Error(`Failed to load FFmpeg: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   async processVideo(inputFile: File, options: VideoProcessingOptions): Promise<Blob> {
@@ -33,20 +40,44 @@ class VideoService {
     const inputFileName = `input.${fileExtension}`
     const outputFileName = 'output.mp4' // Always output as MP4 for consistency
 
-    // Write input file to FFmpeg virtual filesystem
-    await this.ffmpeg.writeFile(inputFileName, await fetchFile(inputFile))
+    try {
+      // Write input file to FFmpeg virtual filesystem
+      await this.ffmpeg.writeFile(inputFileName, await fetchFile(inputFile))
 
-    // Build FFmpeg command based on options
-    const command = this.buildCommand(options, inputFileName, outputFileName)
+      // Build FFmpeg command based on options
+      const command = this.buildCommand(options, inputFileName, outputFileName)
 
-    // Execute FFmpeg command
-    await this.ffmpeg.exec(command)
+      // Execute FFmpeg command
+      await this.ffmpeg.exec(command)
 
-    // Read output file
-    const data = await this.ffmpeg.readFile(outputFileName)
-    
-    // Convert to Blob - handle the type conversion properly
-    return new Blob([data as any], { type: 'video/mp4' })
+      // Read output file
+      const data = await this.ffmpeg.readFile(outputFileName)
+      
+      if (!data || (data as any).length === 0) {
+        throw new Error('Failed to process video: output file is empty')
+      }
+
+      // Clean up input and output files
+      try {
+        await this.ffmpeg.deleteFile(inputFileName)
+        await this.ffmpeg.deleteFile(outputFileName)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+
+      // Convert to Blob - handle the type conversion properly
+      return new Blob([data as any], { type: 'video/mp4' })
+    } catch (error) {
+      // Clean up on error
+      try {
+        await this.ffmpeg.deleteFile(inputFileName)
+        await this.ffmpeg.deleteFile(outputFileName)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      
+      throw new Error(`Video processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   private buildCommand(options: VideoProcessingOptions, inputFileName: string, outputFileName: string): string[] {
@@ -85,13 +116,22 @@ class VideoService {
       const video = document.createElement('video')
       video.preload = 'metadata'
       
+      // Set a timeout in case the video takes too long to load
+      const timeoutId = setTimeout(() => {
+        URL.revokeObjectURL(video.src)
+        reject(new Error('Timeout: Video metadata took too long to load'))
+      }, 10000) // 10 second timeout
+      
       video.onloadedmetadata = function() {
+        clearTimeout(timeoutId)
         window.URL.revokeObjectURL(video.src)
         resolve(video.duration)
       }
       
       video.onerror = function() {
-        reject(new Error('Failed to load video metadata'))
+        clearTimeout(timeoutId)
+        URL.revokeObjectURL(video.src)
+        reject(new Error('Failed to load video metadata - the video format may not be supported'))
       }
       
       video.src = URL.createObjectURL(file)
@@ -111,25 +151,49 @@ class VideoService {
     const inputFileName = `input.${fileExtension}`
     const outputFileName = 'output.mp4'
 
-    // Write input file to FFmpeg virtual filesystem
-    await this.ffmpeg.writeFile(inputFileName, await fetchFile(inputFile))
+    try {
+      // Write input file to FFmpeg virtual filesystem
+      await this.ffmpeg.writeFile(inputFileName, await fetchFile(inputFile))
 
-    // Trim video to exactly 2 minutes (120 seconds) with highest quality
-    await this.ffmpeg.exec([
-      '-i', inputFileName,
-      '-t', '120', // Trim to 120 seconds (2 minutes)
-      '-c:v', 'libx264', // Use H.264 codec
-      '-crf', '18', // High quality (lower = better, 18 is visually lossless)
-      '-preset', 'slow', // Slower encoding for better quality
-      '-c:a', 'aac', // Use AAC for audio
-      '-b:a', '192k', // High quality audio bitrate
-      outputFileName
-    ])
+      // Trim video to exactly 2 minutes (120 seconds) with highest quality
+      const result = await this.ffmpeg.exec([
+        '-i', inputFileName,
+        '-t', '120', // Trim to 120 seconds (2 minutes)
+        '-c:v', 'libx264', // Use H.264 codec
+        '-crf', '18', // High quality (lower = better, 18 is visually lossless)
+        '-preset', 'fast', // Faster encoding (slow preset may cause timeout)
+        '-c:a', 'aac', // Use AAC for audio
+        '-b:a', '128k', // Audio bitrate
+        outputFileName
+      ])
 
-    // Read output file
-    const data = await this.ffmpeg.readFile(outputFileName)
-    
-    return new Blob([data as any], { type: 'video/mp4' })
+      // Read output file
+      const data = await this.ffmpeg.readFile(outputFileName)
+      
+      if (!data || (data as any).length === 0) {
+        throw new Error('Failed to process video: output file is empty')
+      }
+
+      // Clean up input file
+      try {
+        await this.ffmpeg.deleteFile(inputFileName)
+        await this.ffmpeg.deleteFile(outputFileName)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+
+      return new Blob([data as any], { type: 'video/mp4' })
+    } catch (error) {
+      // Clean up on error
+      try {
+        await this.ffmpeg.deleteFile(inputFileName)
+        await this.ffmpeg.deleteFile(outputFileName)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      
+      throw new Error(`Video trimming failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   async getVideoInfo(file: File): Promise<VideoInfo> {
@@ -145,21 +209,39 @@ class VideoService {
     const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'mp4'
     const inputFileName = `input.${fileExtension}`
 
-    await this.ffmpeg.writeFile(inputFileName, await fetchFile(file))
-    
-    // Get video information
-    await this.ffmpeg.exec(['-i', inputFileName, '-f', 'null', '-'])
-    
-    // Parse FFmpeg output to extract video info
-    // This is a simplified version - you'd need more sophisticated parsing
-    const duration = await this.getVideoDuration(file)
-    
-    return {
-      duration,
-      width: 0,
-      height: 0,
-      fps: 0,
-      bitrate: 0,
+    try {
+      await this.ffmpeg.writeFile(inputFileName, await fetchFile(file))
+      
+      // Get video information
+      await this.ffmpeg.exec(['-i', inputFileName, '-f', 'null', '-'])
+      
+      // Parse FFmpeg output to extract video info
+      // This is a simplified version - you'd need more sophisticated parsing
+      const duration = await this.getVideoDuration(file)
+      
+      // Clean up input file
+      try {
+        await this.ffmpeg.deleteFile(inputFileName)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      
+      return {
+        duration,
+        width: 0,
+        height: 0,
+        fps: 0,
+        bitrate: 0,
+      }
+    } catch (error) {
+      // Clean up on error
+      try {
+        await this.ffmpeg.deleteFile(inputFileName)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      
+      throw error
     }
   }
 
@@ -175,20 +257,46 @@ class VideoService {
     // Determine input file extension and use appropriate filename
     const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'mp4'
     const inputFileName = `input.${fileExtension}`
+    const outputFileName = 'thumbnail.jpg'
 
-    await this.ffmpeg.writeFile(inputFileName, await fetchFile(file))
-    
-    // Extract thumbnail at specified time
-    await this.ffmpeg.exec([
-      '-i', inputFileName,
-      '-ss', time.toString(),
-      '-vframes', '1',
-      '-f', 'image2',
-      'thumbnail.jpg'
-    ])
+    try {
+      await this.ffmpeg.writeFile(inputFileName, await fetchFile(file))
+      
+      // Extract thumbnail at specified time
+      await this.ffmpeg.exec([
+        '-i', inputFileName,
+        '-ss', time.toString(),
+        '-vframes', '1',
+        '-f', 'image2',
+        outputFileName
+      ])
 
-    const data = await this.ffmpeg.readFile('thumbnail.jpg')
-    return new Blob([data as any], { type: 'image/jpeg' })
+      const data = await this.ffmpeg.readFile(outputFileName)
+      
+      if (!data || (data as any).length === 0) {
+        throw new Error('Failed to create thumbnail: output file is empty')
+      }
+
+      // Clean up input file
+      try {
+        await this.ffmpeg.deleteFile(inputFileName)
+        await this.ffmpeg.deleteFile(outputFileName)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+
+      return new Blob([data as any], { type: 'image/jpeg' })
+    } catch (error) {
+      // Clean up on error
+      try {
+        await this.ffmpeg.deleteFile(inputFileName)
+        await this.ffmpeg.deleteFile(outputFileName)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      
+      throw new Error(`Thumbnail creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 }
 
