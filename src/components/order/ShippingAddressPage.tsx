@@ -7,9 +7,12 @@ import {
   TextField,
   Paper,
   Chip,
+  Select,
+  MenuItem,
 } from '@mui/material'
 import { NewOrderFormData } from '@/types/order'
 import { useAuth } from '@/contexts/AuthContext'
+import AddressAutocomplete, { AddressData } from '@/components/AddressAutocomplete'
 
 interface ShippingAddressPageProps {
   formData: NewOrderFormData
@@ -24,10 +27,14 @@ export default function ShippingAddressPage({
 }: ShippingAddressPageProps) {
   const { user } = useAuth()
 
-  // Auto-fill email from user's login when component mounts
+  // Auto-fill email from user's login and set default country when component mounts
   useEffect(() => {
     if (user?.email && !formData.shippingAddress.email) {
       handleAddressChange('email', user.email)
+    }
+    // Set default country to United States if not already set
+    if (!formData.shippingAddress.country) {
+      handleAddressChange('country', 'United States')
     }
   }, [user])
 
@@ -37,6 +44,19 @@ export default function ShippingAddressPage({
       shippingAddress: {
         ...prev.shippingAddress,
         [field]: value,
+      },
+    }))
+  }
+
+  const handleAddressSelect = (addressData: AddressData) => {
+    setFormData(prev => ({
+      ...prev,
+      shippingAddress: {
+        ...prev.shippingAddress,
+        address: addressData.street,
+        state: addressData.state,
+        zipcode: addressData.zipcode,
+        country: addressData.country,
       },
     }))
   }
@@ -93,14 +113,12 @@ export default function ShippingAddressPage({
         />
 
         {/* Row 3: Address */}
-        <TextField
-          fullWidth
-          label="Address"
+        <AddressAutocomplete
           value={formData.shippingAddress.address}
-          onChange={(e) => handleAddressChange('address', e.target.value)}
-          required
+          onChange={(value) => handleAddressChange('address', value)}
+          onAddressSelect={handleAddressSelect}
           placeholder="Street address, P.O. box, company name"
-          sx={{ mb: 2 }}
+          required
         />
 
         <TextField
@@ -113,15 +131,17 @@ export default function ShippingAddressPage({
         />
 
         {/* Row 4: Country */}
-        <TextField
+        <Select
           fullWidth
           label="Country"
-          value={formData.shippingAddress.country}
+          value={formData.shippingAddress.country || 'United States'}
           onChange={(e) => handleAddressChange('country', e.target.value)}
           required
-          placeholder="Enter country"
           sx={{ mb: 2 }}
-        />
+        >
+          <MenuItem value="United States">United States</MenuItem>
+          <MenuItem value="Canada">Canada</MenuItem>
+        </Select>
 
         {/* Row 5: State and ZIP Code */}
         <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
