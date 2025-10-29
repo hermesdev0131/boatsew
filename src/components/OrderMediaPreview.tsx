@@ -86,15 +86,15 @@ export default function OrderMediaPreview({
           }
           
           if (isMounted) {
-            const blob = new Blob([retryResult.data])
-            const url = URL.createObjectURL(blob)
+            // retryResult.data is already a Blob from Supabase, use it directly
+            const url = URL.createObjectURL(retryResult.data)
             currentBlobUrl = url
             setMediaUrl(url)
           }
         } else {
           if (isMounted) {
-            const blob = new Blob([result.data])
-            const url = URL.createObjectURL(blob)
+            // result.data is already a Blob from Supabase, use it directly
+            const url = URL.createObjectURL(result.data)
             currentBlobUrl = url
             setMediaUrl(url)
           }

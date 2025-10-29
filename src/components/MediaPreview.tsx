@@ -90,9 +90,8 @@ export default function MediaPreview({ mediaFileName, mediaType, orderId }: Medi
         throw new Error(`Download failed: ${error.message}`)
       }
 
-      // Create blob URL and download
-      const blob = new Blob([data])
-      const url = URL.createObjectURL(blob)
+      // data is already a Blob from Supabase, use it directly
+      const url = URL.createObjectURL(data)
       const link = document.createElement('a')
       link.href = url
       link.download = mediaFileName
