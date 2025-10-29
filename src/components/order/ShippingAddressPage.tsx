@@ -36,6 +36,10 @@ export default function ShippingAddressPage({
     if (!formData.shippingAddress.country) {
       handleAddressChange('country', 'United States')
     }
+    // Auto-set ship by date to today
+    if (!formData.shippingAddress.shipByDate) {
+      handleAddressChange('shipByDate', new Date().toISOString().split('T')[0])
+    }
   }, [user])
 
   const handleAddressChange = (field: keyof NewOrderFormData['shippingAddress'], value: string) => {
@@ -61,23 +65,7 @@ export default function ShippingAddressPage({
     }))
   }
 
-  const getShipByDateStatus = () => {
-    if (!formData.shippingAddress.shipByDate) return null
-    
-    const today = new Date()
-    const shipDate = new Date(formData.shippingAddress.shipByDate)
-    const daysUntilShip = Math.ceil((shipDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    
-    if (daysUntilShip >= 7) {
-      return { label: `${daysUntilShip} days`, color: 'success' as const }
-    } else if (daysUntilShip >= 2) {
-      return { label: `${daysUntilShip} days`, color: 'warning' as const }
-    } else {
-      return { label: daysUntilShip === 1 ? '1 day' : `${daysUntilShip} days`, color: 'error' as const }
-    }
-  }
 
-  const shipDateStatus = getShipByDateStatus()
 
   return (
     <Box>
@@ -89,136 +77,129 @@ export default function ShippingAddressPage({
         <Typography variant="h6" gutterBottom>
           Shipping Information
         </Typography>
-        
-        {/* Row 1: Customer/Company Name */}
-        <TextField
-          fullWidth
-          label="Customer/Company Name"
-          value={formData.shippingAddress.name}
-          onChange={(e) => handleAddressChange('name', e.target.value)}
-          required
-          placeholder="Enter customer or company name"
-          sx={{ mb: 2 }}
-        />
 
-        {/* Row 2: Contact Name */}
-        <TextField
-          fullWidth
-          label="Contact Name"
-          value={formData.shippingAddress.contactName}
-          onChange={(e) => handleAddressChange('contactName', e.target.value)}
-          required
-          placeholder="Enter contact person name"
-          sx={{ mb: 2 }}
-        />
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+          {/* CONTACT INFORMATION */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+              Contact Information
+            </Typography>
 
-        {/* Row 3: Address */}
-        <AddressAutocomplete
-          value={formData.shippingAddress.address}
-          onChange={(value) => handleAddressChange('address', value)}
-          onAddressSelect={handleAddressSelect}
-          placeholder="Street address, P.O. box, company name"
-          required
-        />
+            {/* Company Name */}
+            <TextField
+              fullWidth
+              label="Customer/Company Name"
+              value={formData.shippingAddress.name}
+              onChange={(e) => handleAddressChange('name', e.target.value)}
+              required
+              placeholder="Enter customer or company name"
+              sx={{ mb: 2 }}
+            />
 
-        <TextField
-          fullWidth
-          label="Address Line 2 (Optional)"
-          value={formData.shippingAddress.address2 || ''}
-          onChange={(e) => handleAddressChange('address2', e.target.value)}
-          placeholder="Apartment, suite, unit, building, floor, etc."
-          sx={{ mb: 2 }}
-        />
+            {/* Company Phone */}
+            <TextField
+              fullWidth
+              label="Company Phone (Optional)"
+              value={formData.shippingAddress.companyPhone || ''}
+              onChange={(e) => handleAddressChange('companyPhone', e.target.value)}
+              placeholder="Enter company phone number"
+              sx={{ mb: 2 }}
+            />
 
-        {/* Row 4: Country */}
-        <Select
-          fullWidth
-          label="Country"
-          value={formData.shippingAddress.country || 'United States'}
-          onChange={(e) => handleAddressChange('country', e.target.value)}
-          required
-          sx={{ mb: 2 }}
-        >
-          <MenuItem value="United States">United States</MenuItem>
-          <MenuItem value="Canada">Canada</MenuItem>
-        </Select>
+            {/* Contact Name */}
+            <TextField
+              fullWidth
+              label="Contact Name"
+              value={formData.shippingAddress.contactName}
+              onChange={(e) => handleAddressChange('contactName', e.target.value)}
+              required
+              placeholder="Enter contact person name"
+              sx={{ mb: 2 }}
+            />
 
-        {/* Row 5: State and ZIP Code */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-          <TextField
-            fullWidth
-            label="State"
-            value={formData.shippingAddress.state}
-            onChange={(e) => handleAddressChange('state', e.target.value)}
-            required
-            placeholder="Enter state"
-          />
-          <TextField
-            fullWidth
-            label="ZIP Code"
-            value={formData.shippingAddress.zipcode}
-            onChange={(e) => handleAddressChange('zipcode', e.target.value)}
-            required
-            placeholder="Enter ZIP code"
-          />
-        </Box>
+            {/* Phone Number */}
+            <TextField
+              fullWidth
+              label="Contact Phone"
+              value={formData.shippingAddress.phonenumber}
+              onChange={(e) => handleAddressChange('phonenumber', e.target.value)}
+              required
+              placeholder="Enter phone number"
+              sx={{ mb: 2 }}
+            />
 
-        {/* Row 6: Company Phone (Optional) */}
-        <TextField
-          fullWidth
-          label="Company Phone (Optional)"
-          value={formData.shippingAddress.companyPhone || ''}
-          onChange={(e) => handleAddressChange('companyPhone', e.target.value)}
-          placeholder="Enter company phone number"
-          sx={{ mb: 2 }}
-        />
+            {/* Email */}
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={formData.shippingAddress.email}
+              onChange={(e) => handleAddressChange('email', e.target.value)}
+              required
+              placeholder="Enter email address"
+              helperText="Auto-filled from your account, but you can change it"
+            />
+          </Box>
 
-        {/* Row 7: Phone */}
-        <TextField
-          fullWidth
-          label="Phone"
-          value={formData.shippingAddress.phonenumber}
-          onChange={(e) => handleAddressChange('phonenumber', e.target.value)}
-          required
-          placeholder="Enter phone number"
-          sx={{ mb: 2 }}
-        />
+          {/* ADDRESS INFORMATION */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+              Address
+            </Typography>
 
-        {/* Row 8: Email */}
-        <TextField
-          fullWidth
-          label="Email"
-          type="email"
-          value={formData.shippingAddress.email}
-          onChange={(e) => handleAddressChange('email', e.target.value)}
-          required
-          placeholder="Enter email address"
-          helperText="Auto-filled from your account, but you can change it"
-          sx={{ mb: 2 }}
-        />
-
-        {/* Row 9: Ship by Date */}
-        <Box sx={{ mb: 2 }}>
-          <TextField
-            fullWidth
-            label="Ship by Date"
-            type="date"
-            value={formData.shippingAddress.shipByDate || ''}
-            onChange={(e) => handleAddressChange('shipByDate', e.target.value)}
-            InputLabelProps={{
-              shrink: true,
-            }}
-          />
-          {shipDateStatus && (
-            <Box sx={{ mt: 1 }}>
-              <Chip
-                label={shipDateStatus.label}
-                color={shipDateStatus.color}
-                size="small"
-                sx={{ fontWeight: 'bold' }}
+            {/* Address Line 1 */}
+              <AddressAutocomplete
+                value={formData.shippingAddress.address}
+                onChange={(value) => handleAddressChange('address', value)}
+                onAddressSelect={handleAddressSelect}
+                placeholder="Street address, P.O. box, company name"
+                required
               />
-            </Box>
-          )}
+
+            {/* Address Line 2 */}
+            <TextField
+              fullWidth
+              label="Address Line 2 (Optional)"
+              value={formData.shippingAddress.address2 || ''}
+              onChange={(e) => handleAddressChange('address2', e.target.value)}
+              placeholder="Apartment, suite, unit, building, floor, etc."
+              sx={{ mb: 2 }}
+            />
+
+            {/* State */}
+            <TextField
+              fullWidth
+              label="State"
+              value={formData.shippingAddress.state}
+              onChange={(e) => handleAddressChange('state', e.target.value)}
+              required
+              placeholder="Enter state"
+              sx={{ mb: 2 }}
+            />
+
+            {/* ZIP Code */}
+            <TextField
+              fullWidth
+              label="ZIP Code"
+              value={formData.shippingAddress.zipcode}
+              onChange={(e) => handleAddressChange('zipcode', e.target.value)}
+              required
+              placeholder="Enter ZIP code"
+              sx={{ mb: 2 }}
+            />
+
+            {/* Country */}
+            <Select
+              fullWidth
+              value={formData.shippingAddress.country || 'United States'}
+              onChange={(e) => handleAddressChange('country', e.target.value)}
+              required
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="United States">United States</MenuItem>
+              <MenuItem value="Canada">Canada</MenuItem>
+            </Select>
+          </Box>
         </Box>
 
         {/* Summary */}
@@ -273,12 +254,6 @@ export default function ShippingAddressPage({
               <>
                 <br />
                 Email: {formData.shippingAddress.email}
-              </>
-            )}
-            {formData.shippingAddress.shipByDate && (
-              <>
-                <br />
-                Ship by: {formData.shippingAddress.shipByDate}
               </>
             )}
           </Typography>
