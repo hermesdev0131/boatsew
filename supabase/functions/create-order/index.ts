@@ -67,6 +67,12 @@ Deno.serve(async (req) => {
       cushions
     } = requestBody;
 
+    // Helper function to convert empty strings to null
+    const toNull = (value: any) => {
+      if (value === '' || value === undefined) return null;
+      return value;
+    };
+
     // Validate required fields
     if (!name || !address || !zipcode || !state || !phonenumber) {
       return new Response(
@@ -83,25 +89,25 @@ Deno.serve(async (req) => {
       .from('orders')
       .insert({
         user_id: user.id,
-        projectname: projectname || null,
+        projectname: toNull(projectname),
         quantity: quantity || 0,
         color: color || [],
         name,
-        contact_name: contact_name || null,
+        contact_name: toNull(contact_name),
         address,
-        address2: address2 || null,
-        country: country || null,
+        address2: toNull(address2),
+        country: toNull(country),
         zipcode,
         state,
-        company_phone: company_phone || null,
+        company_phone: toNull(company_phone),
         phonenumber,
-        email: email || null,
-        ship_by_date: ship_by_date || null,
-        boat_make: boat_make || null,
-        boat_model: boat_model || null,
-        boat_year: boat_year || null,
-        boat_length: boat_length || null,
-        boat_HIN: boat_HIN || null,
+        email: toNull(email),
+        ship_by_date: toNull(ship_by_date),
+        boat_make: toNull(boat_make),
+        boat_model: toNull(boat_model),
+        boat_year: toNull(boat_year),
+        boat_length: toNull(boat_length),
+        boat_HIN: toNull(boat_HIN),
         status: 'UNPAID',
         payment_intent_id: [],
         cushions_count: cushions_count || 0,
