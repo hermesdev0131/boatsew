@@ -49,6 +49,7 @@ export interface Order {
   boat_model: string | null
   boat_year: number | null
   boat_length: number | null
+  boat_HIN: string | null
   status: OrderStatus
   payment_intent_id: string[]
   paid_at: string | null
@@ -78,6 +79,7 @@ export interface CreateOrderData {
   boat_model?: string
   boat_year?: number
   boat_length?: number
+  boat_HIN?: string
   cushions_count?: number
   color_images?: Record<string, any>
   cushions?: {
@@ -110,6 +112,7 @@ export interface NewOrderFormData {
     model: string
     year: string // 4-digit year
     length: string // 1-2 digit whole number in feet
+    boatHin: string // Hull Identification Number
   }
 }
 

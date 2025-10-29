@@ -105,6 +105,16 @@ export default function BoatInformationPage({
           />
         </Box>
 
+        <TextField
+          fullWidth
+          label="HIN (Hull Identification Number)"
+          value={formData.boatInformation.boatHin}
+          onChange={(e) => handleBoatInfoChange('boatHin', e.target.value)}
+          placeholder="Enter Hull Identification Number"
+          sx={{ mb: 2 }}
+          helperText="Optional: Located on the transom or inside the hull"
+        />
+
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="body2" color="text.secondary">
             <strong>Boat Information Summary:</strong>

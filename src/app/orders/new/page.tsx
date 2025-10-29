@@ -78,6 +78,7 @@ export default function NewOrderPage() {
       model: '',
       year: '',
       length: '',
+      boatHin: '',
     },
   })
 
@@ -228,6 +229,7 @@ export default function NewOrderPage() {
           boat_model: formData.boatInformation.model,
           boat_year: formData.boatInformation.year ? parseInt(formData.boatInformation.year) : undefined,
           boat_length: formData.boatInformation.length ? parseInt(formData.boatInformation.length) : undefined,
+          boat_HIN: formData.boatInformation.boatHin || undefined,
           cushions_count: formData.cushions.length,
           color_images: {},
           cushions: formData.cushions.map(cushion => ({
@@ -414,6 +416,7 @@ export default function NewOrderPage() {
         boat_model: formData.boatInformation.model,
         boat_year: formData.boatInformation.year ? parseInt(formData.boatInformation.year) : undefined,
         boat_length: formData.boatInformation.length ? parseInt(formData.boatInformation.length) : undefined,
+        boat_HIN: formData.boatInformation.boatHin || undefined,
         cushions_count: formData.cushions.length,
         color_images: colorImagesMap,
                      cushions: formData.cushions.map(cushion => {
