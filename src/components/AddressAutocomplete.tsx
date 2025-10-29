@@ -34,13 +34,12 @@ export default function AddressAutocomplete({
   placeholder = 'Enter address',
   required = false,
 }: AddressAutocompleteProps) {
-  const autocompleteService = useRef<any>(null)
-  const placesService = useRef<any>(null)
   const [predictions, setPredictions] = useState<any[]>([])
   const [showPredictions, setShowPredictions] = useState(false)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const initGoogleMaps = async () => {
@@ -59,11 +58,7 @@ export default function AddressAutocomplete({
 
         await loader.load()
 
-        if (window.google?.maps?.places) {
-          autocompleteService.current = new window.google.maps.places.AutocompleteService()
-          placesService.current = new window.google.maps.places.PlacesService(
-            document.createElement('div')
-          )
+        if (window.google?.maps) {
           setInitialized(true)
         }
       } catch (error) {
@@ -79,7 +74,7 @@ export default function AddressAutocomplete({
     const input = event.target.value
     onChange(input)
 
-    if (!initialized || !autocompleteService.current || input.length < 3) {
+    if (!initialized || input.length < 3) {
       setPredictions([])
       setShowPredictions(false)
       return
@@ -88,32 +83,25 @@ export default function AddressAutocomplete({
     try {
       setLoading(true)
 
-      // First, search for USA results
-      const usaResponse = await autocompleteService.current.getPlacePredictions({
-        input: input,
-        componentRestrictions: { country: ['us'] },
-      })
+      // Use new AutocompleteSuggestion API
+      const { AutocompleteSuggestion } = (await window.google?.maps?.importLibrary?.('places')) as any
 
-      let allPredictions: any[] = []
-
-      // Add USA results first
-      if (usaResponse?.status === 'OK' && usaResponse?.predictions) {
-        allPredictions = [...usaResponse.predictions]
+      if (!AutocompleteSuggestion) {
+        console.warn('AutocompleteSuggestion not available')
+        setPredictions([])
+        setShowPredictions(false)
+        return
       }
 
-      // Then search for Canada results
-      const canadaResponse = await autocompleteService.current.getPlacePredictions({
+      // Fetch predictions with region restrictions for US and Canada
+      const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
         input: input,
-        componentRestrictions: { country: ['ca'] },
+        includedRegionCodes: ['us', 'ca'],
       })
 
-      // Add Canada results after USA
-      if (canadaResponse?.status === 'OK' && canadaResponse?.predictions) {
-        allPredictions = [...allPredictions, ...canadaResponse.predictions]
-      }
-
-      if (allPredictions.length > 0) {
-        setPredictions(allPredictions)
+      if (suggestions && suggestions.length > 0) {
+        console.log('Suggestions received:', suggestions)
+        setPredictions(suggestions)
         setShowPredictions(true)
       } else {
         setPredictions([])
@@ -128,28 +116,40 @@ export default function AddressAutocomplete({
     }
   }
 
-  const handlePredictionClick = (placeId: string, description: string) => {
+  const handlePredictionClick = async (placeId: string, description: string) => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
     onChange(description)
     setShowPredictions(false)
 
-    // Fetch detailed place information
-    if (!placesService.current) return
+    // Only fetch place details if we have a valid place ID (not our fallback)
+    if (!placeId || placeId.startsWith('suggestion-')) {
+      return
+    }
 
+    // Fetch detailed place information using new Place API
     try {
-      placesService.current.getDetails(
-        { placeId: placeId, fields: ['address_components', 'formatted_address'] },
-        (place: any, status: string) => {
-          if (status !== 'OK' || !place) {
-            console.warn('Failed to get place details. Status:', status)
-            return
-          }
+      const { Place } = (await window.google?.maps?.importLibrary?.('places')) as any
 
-          const addressData = parseAddressComponents(place.address_components, place.formatted_address)
-          if (onAddressSelect) {
-            onAddressSelect(addressData)
-          }
-        }
+      if (!Place) {
+        console.warn('Place API not available')
+        return
+      }
+
+      const place = new Place({
+        id: placeId,
+      })
+
+      await place.fetchFields({
+        fields: ['addressComponents', 'formattedAddress'],
+      })
+
+      const addressData = parseAddressComponents(
+        place.addressComponents || [],
+        place.formattedAddress || ''
       )
+      if (onAddressSelect) {
+        onAddressSelect(addressData)
+      }
     } catch (error) {
       console.error('Error fetching place details:', error)
     }
@@ -203,8 +203,11 @@ export default function AddressAutocomplete({
         label="Address"
         value={value}
         onChange={handleInputChange}
-        onFocus={() => value.length > 0 && predictions.length > 0 && setShowPredictions(true)}
-        onBlur={() => setTimeout(() => setShowPredictions(false), 200)}
+        onFocus={() => predictions.length > 0 && setShowPredictions(true)}
+        onBlur={() => {
+          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+          hideTimeoutRef.current = setTimeout(() => setShowPredictions(false), 200)
+        }}
         required={required}
         placeholder={placeholder}
         sx={{ mb: 2 }}
@@ -215,6 +218,10 @@ export default function AddressAutocomplete({
 
       {showPredictions && predictions.length > 0 && (
         <Paper
+          onMouseDown={(e) => {
+            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+            e.preventDefault()
+          }}
           sx={{
             position: 'absolute',
             top: '100%',
@@ -227,28 +234,36 @@ export default function AddressAutocomplete({
           }}
         >
           <List sx={{ py: 0 }}>
-            {predictions.map((prediction) => (
-              <ListItem key={prediction.place_id} sx={{ py: 0 }}>
-                <ListItemButton
-                  onClick={() =>
-                    handlePredictionClick(prediction.place_id, prediction.description)
-                  }
-                >
-                  <ListItemText
-                    primary={prediction.main_text}
-                    secondary={prediction.secondary_text}
-                    sx={{
-                      '& .MuiListItemText-primary': {
-                        fontSize: '0.95rem',
-                      },
-                      '& .MuiListItemText-secondary': {
-                        fontSize: '0.85rem',
-                      },
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
+            {predictions.map((suggestion, index) => {
+              // New Google Places API returns data under placePrediction
+              const placePrediction = suggestion.placePrediction || suggestion
+              const placeId = placePrediction.placeId || placePrediction.id || `suggestion-${index}`
+              
+              // Extract text from the new API structure
+              const mainText = placePrediction.mainText?.text || ''
+              const secondaryText = placePrediction.secondaryText?.text || ''
+              const displayText = placePrediction.description || ''
+
+              return (
+                <ListItem key={placeId} sx={{ py: 0 }}>
+                  <ListItemButton
+                    onClick={() =>
+                      handlePredictionClick(placeId, displayText)
+                    }
+                  >
+                    <ListItemText
+                      primary={displayText}
+                      sx={{
+                        '& .MuiListItemText-primary': {
+                          fontSize: '0.95rem',
+                          color: 'text.primary',
+                        },
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              )
+            })}
           </List>
         </Paper>
       )}

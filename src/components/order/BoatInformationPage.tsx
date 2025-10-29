@@ -117,14 +117,21 @@ export default function BoatInformationPage({
         />
 
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
+            Boat Information Summary
+          </Typography>
           <Typography variant="body2" color="text.secondary">
-            <strong>Boat Information Summary:</strong>
-            <br />
             {formData.boatInformation.make && formData.boatInformation.model && (
               <>
                 {formData.boatInformation.year && `${formData.boatInformation.year} `}
                 {formData.boatInformation.make} {formData.boatInformation.model}
                 {formData.boatInformation.length && ` - ${formData.boatInformation.length}ft`}
+                {formData.boatInformation.boatHin && (
+                  <>
+                    <br />
+                    <strong>HIN:</strong> {formData.boatInformation.boatHin}
+                  </>
+                )}
               </>
             )}
             {!formData.boatInformation.make && !formData.boatInformation.model && (

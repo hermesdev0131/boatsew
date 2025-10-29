@@ -27,7 +27,8 @@ import {
   Chair, 
   Image as ImageIcon,
   VideoFile,
-  Description
+  Description,
+  DirectionsBoat
 } from '@mui/icons-material'
 import { useAuth } from '@/contexts/AuthContext'
 import { orderService } from '@/services/orderService'
@@ -69,6 +70,7 @@ function OrderDetailsPageContent() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
   const [showPaymentResult, setShowPaymentResult] = useState<{ success: boolean; message?: string } | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
 
   const loadOrderDetails = async () => {
     try {
@@ -93,6 +95,10 @@ function OrderDetailsPageContent() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     if (user && orderId) {
@@ -232,7 +238,7 @@ function OrderDetailsPageContent() {
       )}
 
       <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
           {/* Order Information */}
           <Card>
             <CardContent>
@@ -270,18 +276,78 @@ function OrderDetailsPageContent() {
                 <ListItem>
                   <ListItemText 
                     primary="Created" 
-                    secondary={new Date(order.created_at).toLocaleDateString()} 
+                    secondary={isMounted ? new Date(order.created_at).toLocaleDateString() : '—'} 
                   />
                 </ListItem>
                 {order.paid_at && (
                   <ListItem>
                     <ListItemText 
                       primary="Paid" 
-                      secondary={new Date(order.paid_at).toLocaleDateString()} 
+                      secondary={isMounted ? new Date(order.paid_at).toLocaleDateString() : '—'} 
                     />
                   </ListItem>
                 )}
               </List>
+            </CardContent>
+          </Card>
+
+          {/* Boat Information */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <DirectionsBoat />
+                Boat Information
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
+              {(order.boat_make || order.boat_model || order.boat_HIN) ? (
+                <List dense>
+                  {order.boat_make && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Make" 
+                        secondary={order.boat_make} 
+                      />
+                    </ListItem>
+                  )}
+                  {order.boat_model && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Model" 
+                        secondary={order.boat_model} 
+                      />
+                    </ListItem>
+                  )}
+                  {order.boat_year && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Year" 
+                        secondary={order.boat_year} 
+                      />
+                    </ListItem>
+                  )}
+                  {order.boat_length && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Length" 
+                        secondary={`${order.boat_length} ft`} 
+                      />
+                    </ListItem>
+                  )}
+                  {order.boat_HIN && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="HIN (Hull Identification Number)" 
+                        secondary={order.boat_HIN} 
+                      />
+                    </ListItem>
+                  )}
+                </List>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No boat information provided
+                </Typography>
+              )}
             </CardContent>
           </Card>
 
@@ -293,36 +359,89 @@ function OrderDetailsPageContent() {
               </Typography>
               <Divider sx={{ mb: 2 }} />
               
-              <List dense>
-                <ListItem>
-                  <ListItemText 
-                    primary="Name" 
-                    secondary={order.name} 
-                  />
-                </ListItem>
-                                  <ListItem>
-                    <ListItemText 
-                      primary="Address" 
-                      secondary={
-                        <Box component="span">
-                          <Typography variant="body2" component="span" display="block">{order.address}</Typography>
-                          {order.address2 && (
-                            <Typography variant="body2" component="span" display="block">{order.address2}</Typography>
-                          )}
-                          <Typography variant="body2" component="span" display="block">
-                            {order.state}, {order.zipcode}
-                          </Typography>
-                        </Box>
-                      } 
-                    />
-                  </ListItem>
-                <ListItem>
-                  <ListItemText 
-                    primary="Phone" 
-                    secondary={order.phonenumber} 
-                  />
-                </ListItem>
-              </List>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'column' }, gap: 2 }}>
+                {/* Contact Information */}
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 1 }}>
+                    CONTACT INFORMATION
+                  </Typography>
+                  <List dense>
+                    <ListItem>
+                      <ListItemText 
+                        primary="Customer/Company Name" 
+                        secondary={order.name} 
+                      />
+                    </ListItem>
+                    {order.contact_name && (
+                      <ListItem>
+                        <ListItemText 
+                          primary="Contact Name" 
+                          secondary={order.contact_name} 
+                        />
+                      </ListItem>
+                    )}
+                    {order.company_phone && (
+                      <ListItem>
+                        <ListItemText 
+                          primary="Company Phone" 
+                          secondary={order.company_phone} 
+                        />
+                      </ListItem>
+                    )}
+                    <ListItem>
+                      <ListItemText 
+                        primary="Contact Phone" 
+                        secondary={order.phonenumber} 
+                      />
+                    </ListItem>
+                    {order.email && (
+                      <ListItem>
+                        <ListItemText 
+                          primary="Email" 
+                          secondary={order.email} 
+                        />
+                      </ListItem>
+                    )}
+                  </List>
+                </Box>
+
+                {/* Address Information */}
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 1 }}>
+                    ADDRESS
+                  </Typography>
+                  <List dense>
+                    <ListItem>
+                      <ListItemText 
+                        primary="Street Address" 
+                        secondary={order.address} 
+                      />
+                    </ListItem>
+                    {order.address2 && (
+                      <ListItem>
+                        <ListItemText 
+                          primary="Address Line 2" 
+                          secondary={order.address2} 
+                        />
+                      </ListItem>
+                    )}
+                    <ListItem>
+                      <ListItemText 
+                        primary="City/State/ZIP" 
+                        secondary={`${order.state}, ${order.zipcode}`} 
+                      />
+                    </ListItem>
+                    {order.country && (
+                      <ListItem>
+                        <ListItemText 
+                          primary="Country" 
+                          secondary={order.country} 
+                        />
+                      </ListItem>
+                    )}
+                  </List>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
 

@@ -65,7 +65,18 @@ export default function ShippingAddressPage({
     }))
   }
 
-
+  const formatPhoneNumber = (value: string): string => {
+    const cleaned = value.replace(/\D/g, '')
+    // Remove leading 1 if present (we'll add +1 prefix ourselves)
+    let digitsOnly = cleaned.startsWith('1') ? cleaned.slice(1) : cleaned
+    // Limit to 10 digits
+    const limited = digitsOnly.slice(0, 10)
+    
+    if (!limited) return '+1 '
+    if (limited.length <= 3) return `+1 (${limited}`
+    if (limited.length <= 6) return `+1 (${limited.slice(0, 3)}) ${limited.slice(3)}`
+    return `+1 (${limited.slice(0, 3)}) ${limited.slice(3, 6)}-${limited.slice(6)}`
+  }
 
   return (
     <Box>
@@ -101,7 +112,7 @@ export default function ShippingAddressPage({
               fullWidth
               label="Company Phone (Optional)"
               value={formData.shippingAddress.companyPhone || ''}
-              onChange={(e) => handleAddressChange('companyPhone', e.target.value)}
+              onChange={(e) => handleAddressChange('companyPhone', formatPhoneNumber(e.target.value))}
               placeholder="Enter company phone number"
               sx={{ mb: 2 }}
             />
@@ -122,7 +133,7 @@ export default function ShippingAddressPage({
               fullWidth
               label="Contact Phone"
               value={formData.shippingAddress.phonenumber}
-              onChange={(e) => handleAddressChange('phonenumber', e.target.value)}
+              onChange={(e) => handleAddressChange('phonenumber', formatPhoneNumber(e.target.value))}
               required
               placeholder="Enter phone number"
               sx={{ mb: 2 }}
@@ -204,59 +215,72 @@ export default function ShippingAddressPage({
 
         {/* Summary */}
         <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            <strong>Shipping Information Summary:</strong>
-            <br />
-            {formData.shippingAddress.name && `${formData.shippingAddress.name}`}
-            {formData.shippingAddress.contactName && (
-              <>
-                <br />
-                Contact: {formData.shippingAddress.contactName}
-              </>
-            )}
-            {formData.shippingAddress.address && (
-              <>
-                <br />
-                {formData.shippingAddress.address}
-              </>
-            )}
-            {formData.shippingAddress.address2 && (
-              <>
-                <br />
-                {formData.shippingAddress.address2}
-              </>
-            )}
-            {formData.shippingAddress.state && formData.shippingAddress.zipcode && (
-              <>
-                <br />
-                {formData.shippingAddress.state}, {formData.shippingAddress.zipcode}
-              </>
-            )}
-            {formData.shippingAddress.country && (
-              <>
-                <br />
-                {formData.shippingAddress.country}
-              </>
-            )}
-            {formData.shippingAddress.companyPhone && (
-              <>
-                <br />
-                Company Phone: {formData.shippingAddress.companyPhone}
-              </>
-            )}
-            {formData.shippingAddress.phonenumber && (
-              <>
-                <br />
-                Phone: {formData.shippingAddress.phonenumber}
-              </>
-            )}
-            {formData.shippingAddress.email && (
-              <>
-                <br />
-                Email: {formData.shippingAddress.email}
-              </>
-            )}
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
+            Shipping Information Summary
           </Typography>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+            {/* Contact Information Summary */}
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 1 }}>
+                CONTACT INFORMATION
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {formData.shippingAddress.name && `${formData.shippingAddress.name}`}
+                {formData.shippingAddress.contactName && (
+                  <>
+                    <br />
+                    {formData.shippingAddress.contactName}
+                  </>
+                )}
+                {formData.shippingAddress.companyPhone && (
+                  <>
+                    <br />
+                    <strong>Co. Phone:</strong> {formData.shippingAddress.companyPhone}
+                  </>
+                )}
+                {formData.shippingAddress.phonenumber && (
+                  <>
+                    <br />
+                    <strong>Phone:</strong> {formData.shippingAddress.phonenumber}
+                  </>
+                )}
+                {formData.shippingAddress.email && (
+                  <>
+                    <br />
+                    <strong>Email:</strong> {formData.shippingAddress.email}
+                  </>
+                )}
+              </Typography>
+            </Box>
+
+            {/* Address Summary */}
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 1 }}>
+                ADDRESS
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {formData.shippingAddress.address && `${formData.shippingAddress.address}`}
+                {formData.shippingAddress.address2 && (
+                  <>
+                    <br />
+                    {formData.shippingAddress.address2}
+                  </>
+                )}
+                {(formData.shippingAddress.state || formData.shippingAddress.zipcode) && (
+                  <>
+                    <br />
+                    {formData.shippingAddress.state} {formData.shippingAddress.zipcode}
+                  </>
+                )}
+                {formData.shippingAddress.country && (
+                  <>
+                    <br />
+                    {formData.shippingAddress.country}
+                  </>
+                )}
+              </Typography>
+            </Box>
+          </Box>
         </Box>
       </Paper>
     </Box>
