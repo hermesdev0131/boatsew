@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
       contact_name,
       address,
       address2,
+      city,
       country,
       zipcode,
       state,
@@ -74,11 +75,11 @@ Deno.serve(async (req) => {
     };
 
     // Validate required fields
-    if (!name || !address || !zipcode || !state || !phonenumber) {
+    if (!name || !address || !city || !zipcode || !state || !phonenumber) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Missing required fields: name, address, zipcode, state, phonenumber' 
+          error: 'Missing required fields: name, address, city, zipcode, state, phonenumber' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -96,6 +97,7 @@ Deno.serve(async (req) => {
         contact_name: toNull(contact_name),
         address,
         address2: toNull(address2),
+        city,
         country: toNull(country),
         zipcode,
         state,

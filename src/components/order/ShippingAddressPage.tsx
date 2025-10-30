@@ -58,6 +58,7 @@ export default function ShippingAddressPage({
       shippingAddress: {
         ...prev.shippingAddress,
         address: addressData.street,
+        city: addressData.city || '',
         state: addressData.state,
         zipcode: addressData.zipcode,
         country: addressData.country,
@@ -177,16 +178,28 @@ export default function ShippingAddressPage({
               sx={{ mb: 2 }}
             />
 
-            {/* State */}
-            <TextField
-              fullWidth
-              label="State"
-              value={formData.shippingAddress.state}
-              onChange={(e) => handleAddressChange('state', e.target.value)}
-              required
-              placeholder="Enter state"
-              sx={{ mb: 2 }}
-            />
+            {/* City and State in same row */}
+            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+              {/* City */}
+              <TextField
+                label="City"
+                value={formData.shippingAddress.city}
+                onChange={(e) => handleAddressChange('city', e.target.value)}
+                required
+                placeholder="Enter city"
+                sx={{ flex: 1 }}
+              />
+
+              {/* State */}
+              <TextField
+                label="State"
+                value={formData.shippingAddress.state}
+                onChange={(e) => handleAddressChange('state', e.target.value)}
+                required
+                placeholder="Enter state"
+                sx={{ flex: 1 }}
+              />
+            </Box>
 
             {/* ZIP Code */}
             <TextField
@@ -266,9 +279,11 @@ export default function ShippingAddressPage({
                     {formData.shippingAddress.address2}
                   </>
                 )}
-                {(formData.shippingAddress.state || formData.shippingAddress.zipcode) && (
+                {(formData.shippingAddress.city || formData.shippingAddress.state || formData.shippingAddress.zipcode) && (
                   <>
                     <br />
+                    {formData.shippingAddress.city && `${formData.shippingAddress.city}`}
+                    {formData.shippingAddress.city && formData.shippingAddress.state && ', '}
                     {formData.shippingAddress.state} {formData.shippingAddress.zipcode}
                   </>
                 )}

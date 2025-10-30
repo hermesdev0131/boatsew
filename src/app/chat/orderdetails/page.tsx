@@ -372,14 +372,6 @@ function OrderDetailsPageContent() {
                         secondary={order.name} 
                       />
                     </ListItem>
-                    {order.contact_name && (
-                      <ListItem>
-                        <ListItemText 
-                          primary="Contact Name" 
-                          secondary={order.contact_name} 
-                        />
-                      </ListItem>
-                    )}
                     {order.company_phone && (
                       <ListItem>
                         <ListItemText 
@@ -388,6 +380,15 @@ function OrderDetailsPageContent() {
                         />
                       </ListItem>
                     )}
+                    {order.contact_name && (
+                      <ListItem>
+                        <ListItemText 
+                          primary="Contact Name" 
+                          secondary={order.contact_name} 
+                        />
+                      </ListItem>
+                    )}
+                    
                     <ListItem>
                       <ListItemText 
                         primary="Contact Phone" 
@@ -428,7 +429,7 @@ function OrderDetailsPageContent() {
                     <ListItem>
                       <ListItemText 
                         primary="City/State/ZIP" 
-                        secondary={`${order.state}, ${order.zipcode}`} 
+                        secondary={`${order.city}, ${order.state} ${order.zipcode}`} 
                       />
                     </ListItem>
                     {order.country && (

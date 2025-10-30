@@ -39,6 +39,7 @@ export interface Order {
   address: string
   address2: string | null
   country: string | null
+  city: string | null
   zipcode: string
   state: string
   company_phone: string | null
@@ -69,6 +70,7 @@ export interface CreateOrderData {
   address: string
   address2?: string
   country?: string
+  city?: string
   zipcode: string
   state: string
   company_phone?: string
@@ -100,6 +102,7 @@ export interface NewOrderFormData {
     address: string
     address2?: string
     country: string
+    city: string
     zipcode: string
     state: string
     companyPhone?: string

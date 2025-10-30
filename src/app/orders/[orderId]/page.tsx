@@ -310,6 +310,14 @@ export default function OrderPage() {
                       secondary={order.name} 
                     />
                   </ListItem>
+                  {order.company_phone && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Company Phone" 
+                        secondary={order.company_phone} 
+                      />
+                    </ListItem>
+                  )}
                   {order.contact_name && (
                     <ListItem>
                       <ListItemText 
@@ -334,18 +342,10 @@ export default function OrderPage() {
                   )}
                   <ListItem>
                     <ListItemText 
-                      primary="State / ZIP" 
-                      secondary={`${order.state} ${order.zipcode}`} 
+                      primary="City/State/ZIP" 
+                      secondary={`${order.city}, ${order.state} ${order.zipcode}`} 
                     />
                   </ListItem>
-                  {order.company_phone && (
-                    <ListItem>
-                      <ListItemText 
-                        primary="Company Phone" 
-                        secondary={order.company_phone} 
-                      />
-                    </ListItem>
-                  )}
                   <ListItem>
                     <ListItemText 
                       primary="Phone" 
